@@ -1,8 +1,9 @@
 from flask import Blueprint, request, jsonify
 from app.services.shop_service import ShopService
 from app.utils.decorators import login_required, shop_owner_required
-from bson import json_util
+from bson import json_util, ObjectId
 import json
+from datetime import datetime
 from .. import db
 
 shop_bp = Blueprint('shop', __name__)
@@ -143,3 +144,75 @@ def get_all_shops():
         return jsonify(formatted_shops), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+# routes/shop.py - Add these new endpoints
+
+@shop_bp.route('/orders', methods=['GET'])
+@shop_owner_required
+def get_shop_orders(current_user):
+    try:
+        # Get shop_id for current owner
+        shop = db.shops.find_one({'owner_id': ObjectId(current_user['user_id'])})
+        if not shop:
+            return jsonify({'error': 'Shop not found'}), 404
+
+        # Get orders for this shop
+        orders = list(db.orders.aggregate([
+            {'$match': {'shop_id': shop['_id']}},
+            {'$lookup': {
+                'from': 'users',
+                'localField': 'customer_id',
+                'foreignField': '_id',
+                'as': 'customer'
+            }},
+            {'$unwind': '$customer'},
+            {'$project': {
+                'id': {'$toString': '$_id'},
+                'customerName': '$customer.name',
+                'items': 1,
+                'status': 1,
+                'pickupTime': '$pickup_time',
+                'deliveryTime': '$delivery_time',
+                'totalAmount': '$total_amount',
+                'created_at': 1,
+                'pickup_address': 1  # Include pickup_address in projection
+            }}
+        ]))
+        orders_json = json_util.dumps(orders)
+        return jsonify(json.loads(orders_json)), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@shop_bp.route('/orders/<order_id>/status', methods=['PUT'])
+@shop_owner_required
+def update_order_status(current_user, order_id):
+    try:
+        data = request.get_json()
+        new_status = data.get('status')
+        if not new_status:
+            return jsonify({'error': 'Status is required'}), 400
+
+        # Verify shop ownership and update status
+        shop = db.shops.find_one({'owner_id': ObjectId(current_user['user_id'])})
+        if not shop:
+            return jsonify({'error': 'Shop not found'}), 404
+
+        result = db.orders.update_one(
+            {
+                '_id': ObjectId(order_id),
+                'shop_id': shop['_id']
+            },
+            {
+                '$set': {
+                    'status': new_status,
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+
+        if result.matched_count == 0:
+            return jsonify({'error': 'Order not found or unauthorized'}), 404
+
+        return jsonify({'message': 'Order status updated successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

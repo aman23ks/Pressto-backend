@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request, Response
 from pymongo import MongoClient
 from flask_cors import CORS
 from .config import Config
@@ -15,6 +15,11 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
     # Initialize extensions
     CORS(app)
+    
+    @app.before_request
+    def before_authentication():
+        if request.method.lower() == 'options':
+            return Response()
     
     global db
     
