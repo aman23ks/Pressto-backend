@@ -94,32 +94,33 @@ class CustomerService:
         return orders
 
     @staticmethod
-    def get_orders_by_status(customer_id, statuses):
-        # Validate statuses
-        valid_statuses = {'pending', 'inProgress', 'completed'}
-        for status in statuses:
-            if status not in valid_statuses:
-                raise ValueError(f'Invalid status: {status}')
-
-        # Query the database for orders with matching statuses
-        orders = list(db.orders.find(
-            {'customer_id': ObjectId(customer_id), 'status': {'$in': statuses}},
+    def get_order_by_status(current_user, statuses):
+        orders = list(db.orders.aggregate([
             {
-                '_id': 1,
-                'shop_id': 1,
+                '$match': {
+                    'customer_id': ObjectId(current_user['user_id']),
+                    'status': {'$in': statuses}
+                }
+            },
+            {'$lookup': {
+                'from': 'shops',
+                'localField': 'shop_id',
+                'foreignField': '_id',
+                'as': 'shop'
+            }},
+            {'$unwind': '$shop'},
+            {'$sort': {'created_at': -1}},
+            {'$project': {
+                'id': {'$toString': '$_id'},
+                'shopName': '$shop.name',
+                'items': 1,
                 'status': 1,
+                'pickup_time': 1,
+                'delivery_time': 1,
                 'total_amount': 1,
                 'created_at': 1,
-                'items': 1
-            }
-        ))
-
-        # Enrich orders with shop details (if necessary)
-        for order in orders:
-            shop = db.shops.find_one({'_id': order['shop_id']}, {'name': 1})
-            order['shop_name'] = shop['name'] if shop else None
-            order['id'] = str(order['_id'])  # Convert ObjectId to string
-            del order['_id']  # Remove internal MongoDB ID
-
+                'pickup_address': 1
+            }}
+        ]))
+        
         return orders
-    

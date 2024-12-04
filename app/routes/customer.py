@@ -82,34 +82,22 @@ def delete_address(current_user, address_id):
     except Exception as e:
         return jsonify({'error': 'Failed to delete address'}), 500
 
-@customer_bp.route('/orders/history', methods=['GET'])
-@login_required
-def get_order_history(current_user):
-    try:
-        if current_user['user_type'] != 'customer':
-            return jsonify({'error': 'Unauthorized'}), 403
-            
-        history = CustomerService.get_order_history(current_user['user_id'])
-        return jsonify(history), 200
-    except Exception as e:
-        return jsonify({'error': 'Failed to fetch order history'}), 500
-    
 @customer_bp.route('/orders', methods=['GET'])
 @login_required
-def get_orders_by_status(current_user):
+def get_customer_orders(current_user):
     try:
         if current_user['user_type'] != 'customer':
             return jsonify({'error': 'Unauthorized'}), 403
 
-        # Retrieve statuses from query parameters
-        statuses = request.args.getlist('status')
-        if not statuses:
-            return jsonify({'error': 'No statuses provided'}), 400
+        # Get order type from query parameter
+        order_type = request.args.get('type', 'active')  # default to active
+        # Set statuses based on order type
+        statuses = ['pending', 'inProgress'] if order_type == 'active' else ['completed']
+        
+        orders = CustomerService.get_order_by_status(current_user, statuses)
+        orders_json = json_util.dumps(orders)
+        return jsonify(json.loads(orders_json)), 200
 
-        # Fetch orders for the current customer based on statuses
-        orders = CustomerService.get_orders_by_status(current_user['user_id'], statuses)
-        return jsonify(orders), 200
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
     except Exception as e:
+        print(f"Error in get_customer_orders: {str(e)}")
         return jsonify({'error': 'Failed to fetch orders'}), 500
