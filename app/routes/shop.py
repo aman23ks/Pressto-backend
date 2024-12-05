@@ -139,7 +139,8 @@ def get_all_shops():
             "rating": shop.get("rating", 4.5),  # Default rating if not available
             "totalOrders": shop.get("total_orders", 0),
             "distance": "1.2 km",  # Static for now
-            "deliveryTime": "24 hours"  # Static for now
+            "deliveryTime": "24 hours",  # Static for now
+            "services": shop.get("services", [])  
         } for shop in shops]
         return jsonify(formatted_shops), 200
     except Exception as e:
