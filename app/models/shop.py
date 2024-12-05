@@ -1,9 +1,10 @@
+# models/shop.py
 from datetime import datetime
 from bson import ObjectId
 
 class Shop:
     def __init__(self, name, owner_id, address, location, service_area, 
-                 price_per_item, business_hours, contact_info, status='active',
+                 business_hours, contact_info, services=None, status='active',
                  rating=0, total_orders=0, created_at=None, updated_at=None, _id=None):
         self._id = _id if _id else ObjectId()
         self.name = name
@@ -11,7 +12,7 @@ class Shop:
         self.address = address
         self.location = location  # {type: "Point", coordinates: [longitude, latitude]}
         self.service_area = service_area  # radius in kilometers
-        self.price_per_item = price_per_item
+        self.services = services if services else []  # List of service items
         self.business_hours = business_hours
         self.contact_info = contact_info
         self.status = status
@@ -28,7 +29,7 @@ class Shop:
             'address': self.address,
             'location': self.location,
             'service_area': self.service_area,
-            'price_per_item': self.price_per_item,
+            'services': self.services,
             'business_hours': self.business_hours,
             'contact_info': self.contact_info,
             'status': self.status,

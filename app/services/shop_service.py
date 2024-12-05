@@ -128,3 +128,99 @@ class ShopService:
             formatted_stats['total_orders'] += stat['count']
             
         return formatted_stats
+
+    @staticmethod
+    def add_service(shop_id, owner_id, service_data):
+        """Add a new service to the shop"""
+        shop = db.shops.find_one({
+            '_id': ObjectId(shop_id),
+            'owner_id': ObjectId(owner_id)
+        })
+
+        if not shop:
+            raise ValueError('Shop not found or unauthorized')
+
+        service = {
+            'id': str(ObjectId()),
+            'type': service_data['type'],
+            'price': float(service_data['price']),
+            'description': service_data.get('description', ''),
+            'created_at': datetime.utcnow()
+        }
+
+        result = db.shops.update_one(
+            {'_id': ObjectId(shop_id)},
+            {
+                '$push': {'services': service},
+                '$set': {'updated_at': datetime.utcnow()}
+            }
+        )
+
+        if result.modified_count == 0:
+            raise ValueError('Failed to add service')
+
+        return service['id']
+
+    @staticmethod
+    def update_service(shop_id, owner_id, service_id, service_data):
+        """Update an existing service"""
+        shop = db.shops.find_one({
+            '_id': ObjectId(shop_id),
+            'owner_id': ObjectId(owner_id)
+        })
+
+        if not shop:
+            raise ValueError('Shop not found or unauthorized')
+
+        result = db.shops.update_one(
+            {
+                '_id': ObjectId(shop_id),
+                'services.id': service_id
+            },
+            {
+                '$set': {
+                    'services.$.type': service_data['type'],
+                    'services.$.price': float(service_data['price']),
+                    'services.$.description': service_data.get('description', ''),
+                    'services.$.updated_at': datetime.utcnow(),
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+
+        if result.modified_count == 0:
+            raise ValueError('Service not found')
+
+        return True
+
+    @staticmethod
+    def delete_service(shop_id, owner_id, service_id):
+        """Delete a service"""
+        shop = db.shops.find_one({
+            '_id': ObjectId(shop_id),
+            'owner_id': ObjectId(owner_id)
+        })
+
+        if not shop:
+            raise ValueError('Shop not found or unauthorized')
+
+        result = db.shops.update_one(
+            {'_id': ObjectId(shop_id)},
+            {
+                '$pull': {'services': {'id': service_id}},
+                '$set': {'updated_at': datetime.utcnow()}
+            }
+        )
+
+        if result.modified_count == 0:
+            raise ValueError('Service not found')
+
+        return True
+
+    @staticmethod
+    def get_services(shop_id):
+        """Get all services for a shop"""
+        shop = db.shops.find_one({'_id': ObjectId(shop_id)})
+        if not shop:
+            raise ValueError('Shop not found')
+        return shop.get('services', [])

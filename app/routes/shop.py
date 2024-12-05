@@ -216,3 +216,84 @@ def update_order_status(current_user, order_id):
         return jsonify({'message': 'Order status updated successfully'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@shop_bp.route('/services', methods=['GET'])
+@shop_owner_required
+def get_services(current_user):
+    try:
+        shop = db.shops.find_one({'owner_id': ObjectId(current_user['user_id'])})
+        if not shop:
+            return jsonify({'error': 'Shop not found'}), 404
+
+        services = ShopService.get_services(shop['_id'])
+        return jsonify(services), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': 'Failed to fetch services'}), 500
+
+@shop_bp.route('/services', methods=['POST'])
+@shop_owner_required
+def add_service(current_user):
+    try:
+        service_data = request.get_json()
+        
+        # Validate required fields
+        if not all(k in service_data for k in ['type', 'price']):
+            return jsonify({'error': 'Type and price are required'}), 400
+
+        shop = db.shops.find_one({'owner_id': ObjectId(current_user['user_id'])})
+        if not shop:
+            return jsonify({'error': 'Shop not found'}), 404
+
+        service_id = ShopService.add_service(
+            shop['_id'],
+            current_user['user_id'],
+            service_data
+        )
+        return jsonify({'service_id': service_id}), 201
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': 'Failed to add service'}), 500
+
+@shop_bp.route('/services/<service_id>', methods=['PUT'])
+@shop_owner_required
+def update_service(current_user, service_id):
+    try:
+        service_data = request.get_json()
+        
+        shop = db.shops.find_one({'owner_id': ObjectId(current_user['user_id'])})
+        if not shop:
+            return jsonify({'error': 'Shop not found'}), 404
+
+        ShopService.update_service(
+            shop['_id'],
+            current_user['user_id'],
+            service_id,
+            service_data
+        )
+        return jsonify({'message': 'Service updated successfully'}), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': 'Failed to update service'}), 500
+
+@shop_bp.route('/services/<service_id>', methods=['DELETE'])
+@shop_owner_required
+def delete_service(current_user, service_id):
+    try:
+        shop = db.shops.find_one({'owner_id': ObjectId(current_user['user_id'])})
+        if not shop:
+            return jsonify({'error': 'Shop not found'}), 404
+
+        ShopService.delete_service(
+            shop['_id'],
+            current_user['user_id'],
+            service_id
+        )
+        return jsonify({'message': 'Service deleted successfully'}), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': 'Failed to delete service'}), 500
