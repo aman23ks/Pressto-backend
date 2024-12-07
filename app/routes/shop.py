@@ -90,22 +90,6 @@ def update_business_hours(current_user, shop_id):
     except Exception as e:
         return jsonify({'error': 'Failed to update business hours'}), 500
 
-@shop_bp.route('/<shop_id>/pricing', methods=['PUT'])
-@shop_owner_required
-def update_pricing(current_user, shop_id):
-    try:
-        pricing_data = request.get_json()
-        ShopService.update_shop(
-            shop_id, 
-            current_user['user_id'], 
-            {'price_per_item': float(pricing_data['price_per_item'])}
-        )
-        return jsonify({'message': 'Pricing updated successfully'}), 200
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'error': 'Failed to update pricing'}), 500
-
 @shop_bp.route('/<shop_id>/status', methods=['PUT'])
 @shop_owner_required
 def update_shop_status(current_user, shop_id):
@@ -124,7 +108,6 @@ def update_shop_status(current_user, shop_id):
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': 'Failed to update shop status'}), 500
-    
 
 @shop_bp.route('/', methods=['GET'])
 def get_all_shops():
@@ -135,29 +118,24 @@ def get_all_shops():
         formatted_shops = [{
             "id": str(shop["_id"]),
             "name": shop["name"],
-            "pricePerItem": float(shop["price_per_item"]),
             "rating": shop.get("rating", 4.5),  # Default rating if not available
             "totalOrders": shop.get("total_orders", 0),
             "distance": "1.2 km",  # Static for now
-            "deliveryTime": "24 hours",  # Static for now
-            "services": shop.get("services", [])  
+            "services": shop.get("services", []),
+            "address": shop.get("address", "No address available")  
         } for shop in shops]
         return jsonify(formatted_shops), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-# routes/shop.py - Add these new endpoints
-
 @shop_bp.route('/orders', methods=['GET'])
 @shop_owner_required
 def get_shop_orders(current_user):
     try:
-        # Get shop_id for current owner
         shop = db.shops.find_one({'owner_id': ObjectId(current_user['user_id'])})
         if not shop:
             return jsonify({'error': 'Shop not found'}), 404
 
-        # Get orders for this shop
         orders = list(db.orders.aggregate([
             {'$match': {'shop_id': shop['_id']}},
             {'$lookup': {
@@ -172,11 +150,10 @@ def get_shop_orders(current_user):
                 'customerName': '$customer.name',
                 'items': 1,
                 'status': 1,
-                'pickupTime': '$pickup_time',
-                'deliveryTime': '$delivery_time',
+                'pickup_date': 1,
                 'totalAmount': '$total_amount',
                 'created_at': 1,
-                'pickup_address': 1  # Include pickup_address in projection
+                'pickup_address': 1
             }}
         ]))
         orders_json = json_util.dumps(orders)
@@ -193,7 +170,6 @@ def update_order_status(current_user, order_id):
         if not new_status:
             return jsonify({'error': 'Status is required'}), 400
 
-        # Verify shop ownership and update status
         shop = db.shops.find_one({'owner_id': ObjectId(current_user['user_id'])})
         if not shop:
             return jsonify({'error': 'Shop not found'}), 404
@@ -218,83 +194,55 @@ def update_order_status(current_user, order_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@shop_bp.route('/services', methods=['GET'])
+@shop_bp.route('/services', methods=['GET', 'POST'])
 @shop_owner_required
-def get_services(current_user):
+def handle_services(current_user):
     try:
         shop = db.shops.find_one({'owner_id': ObjectId(current_user['user_id'])})
         if not shop:
             return jsonify({'error': 'Shop not found'}), 404
 
-        services = ShopService.get_services(shop['_id'])
-        return jsonify(services), 200
+        if request.method == 'GET':
+            services = ShopService.get_services(shop['_id'])
+            return jsonify(services), 200
+        else:  # POST
+            service_data = request.get_json()
+            service_id = ShopService.add_service(
+                shop['_id'],
+                current_user['user_id'],
+                service_data
+            )
+            return jsonify({'service_id': service_id}), 201
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        return jsonify({'error': 'Failed to fetch services'}), 500
+        return jsonify({'error': 'Failed to handle service request'}), 500
 
-@shop_bp.route('/services', methods=['POST'])
+@shop_bp.route('/services/<service_id>', methods=['PUT', 'DELETE'])
 @shop_owner_required
-def add_service(current_user):
-    try:
-        service_data = request.get_json()
-        
-        # Validate required fields
-        if not all(k in service_data for k in ['type', 'price']):
-            return jsonify({'error': 'Type and price are required'}), 400
-
-        shop = db.shops.find_one({'owner_id': ObjectId(current_user['user_id'])})
-        if not shop:
-            return jsonify({'error': 'Shop not found'}), 404
-
-        service_id = ShopService.add_service(
-            shop['_id'],
-            current_user['user_id'],
-            service_data
-        )
-        return jsonify({'service_id': service_id}), 201
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'error': 'Failed to add service'}), 500
-
-@shop_bp.route('/services/<service_id>', methods=['PUT'])
-@shop_owner_required
-def update_service(current_user, service_id):
-    try:
-        service_data = request.get_json()
-        
-        shop = db.shops.find_one({'owner_id': ObjectId(current_user['user_id'])})
-        if not shop:
-            return jsonify({'error': 'Shop not found'}), 404
-
-        ShopService.update_service(
-            shop['_id'],
-            current_user['user_id'],
-            service_id,
-            service_data
-        )
-        return jsonify({'message': 'Service updated successfully'}), 200
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'error': 'Failed to update service'}), 500
-
-@shop_bp.route('/services/<service_id>', methods=['DELETE'])
-@shop_owner_required
-def delete_service(current_user, service_id):
+def handle_service(current_user, service_id):
     try:
         shop = db.shops.find_one({'owner_id': ObjectId(current_user['user_id'])})
         if not shop:
             return jsonify({'error': 'Shop not found'}), 404
 
-        ShopService.delete_service(
-            shop['_id'],
-            current_user['user_id'],
-            service_id
-        )
-        return jsonify({'message': 'Service deleted successfully'}), 200
+        if request.method == 'PUT':
+            service_data = request.get_json()
+            ShopService.update_service(
+                shop['_id'],
+                current_user['user_id'],
+                service_id,
+                service_data
+            )
+            return jsonify({'message': 'Service updated successfully'}), 200
+        else:  # DELETE
+            ShopService.delete_service(
+                shop['_id'],
+                current_user['user_id'],
+                service_id
+            )
+            return jsonify({'message': 'Service deleted successfully'}), 200
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        return jsonify({'error': 'Failed to delete service'}), 500
+        return jsonify({'error': 'Failed to handle service request'}), 500

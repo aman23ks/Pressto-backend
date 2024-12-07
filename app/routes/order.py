@@ -18,10 +18,12 @@ def create_order(current_user):
             customer_id=current_user['user_id'],
             shop_id=data['shop_id'],
             items=data['items'],
-            pickup_time=data['pickup_time'],
-            delivery_time=data['delivery_time'],
+            pickup_date=data['pickup_date'],
+            # pickup_time=data['pickup_time'],
+            # delivery_time=data['delivery_time'],
             pickup_address=data['pickup_address'],
-            special_instructions=data.get('special_instructions')
+            special_instructions=data.get('special_instructions'),
+            total_amount=data.get('total_amount')
         )
         return jsonify({'order_id': order_id}), 201
     except ValueError as e:

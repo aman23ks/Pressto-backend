@@ -115,8 +115,9 @@ class CustomerService:
                 'shopName': '$shop.name',
                 'items': 1,
                 'status': 1,
-                'pickup_time': 1,
-                'delivery_time': 1,
+                'pickup_date': 1,
+                # 'pickup_time': 1,
+                # 'delivery_time': 1,
                 'total_amount': 1,
                 'created_at': 1,
                 'pickup_address': 1

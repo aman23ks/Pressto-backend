@@ -5,22 +5,21 @@ from app.models.order import Order
 
 class OrderService:
     @staticmethod
-    def create_order(customer_id, shop_id, items, pickup_time, delivery_time, 
-                    pickup_address, special_instructions=None):
+    def create_order(customer_id, shop_id, items, pickup_date, 
+                    pickup_address, special_instructions=None, total_amount=None):
         # Get shop details for price calculation
         shop = db.shops.find_one({'_id': ObjectId(shop_id)})
         if not shop:
             raise ValueError('Shop not found')
 
         # Calculate total amount
-        total_amount = sum(item['count'] * shop['price_per_item'] for item in items)
-
         order = {
             'customer_id': ObjectId(customer_id),
             'shop_id': ObjectId(shop_id),
             'items': items,
-            'pickup_time': pickup_time,
-            'delivery_time': delivery_time,
+            'pickup_date': pickup_date,
+            # 'pickup_time': pickup_time,
+            # 'delivery_time': delivery_time,
             'status': 'pending',
             'total_amount': total_amount,
             'pickup_address': pickup_address,
@@ -59,8 +58,9 @@ class OrderService:
                 'items': 1,
                 'status': 1,
                 'total_amount': 1,
-                'pickup_time': 1,
-                'delivery_time': 1,
+                'pickup_date': 1,
+                # 'pickup_time': 1,
+                # 'delivery_time': 1,
                 'shop_name': '$shop.name',
                 'shop_contact': '$shop.contact_info',
                 'created_at': 1

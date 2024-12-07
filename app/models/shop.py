@@ -3,7 +3,7 @@ from datetime import datetime
 from bson import ObjectId
 
 class Shop:
-    def __init__(self, name, owner_id, address, location, service_area, 
+    def __init__(self, name, owner_id, address, location,
                  business_hours, contact_info, services=None, status='active',
                  rating=0, total_orders=0, created_at=None, updated_at=None, _id=None):
         self._id = _id if _id else ObjectId()
@@ -11,7 +11,6 @@ class Shop:
         self.owner_id = owner_id
         self.address = address
         self.location = location  # {type: "Point", coordinates: [longitude, latitude]}
-        self.service_area = service_area  # radius in kilometers
         self.services = services if services else []  # List of service items
         self.business_hours = business_hours
         self.contact_info = contact_info
@@ -28,7 +27,6 @@ class Shop:
             'owner_id': str(self.owner_id),
             'address': self.address,
             'location': self.location,
-            'service_area': self.service_area,
             'services': self.services,
             'business_hours': self.business_hours,
             'contact_info': self.contact_info,

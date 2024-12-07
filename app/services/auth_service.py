@@ -105,8 +105,6 @@ class AuthService:
                 'phone': 'Phone number',
                 'address': 'Shop address',
                 'zipCode': 'ZIP code',
-                'serviceArea': 'Service area',
-                'pricePerItem': 'Price per item',
                 'password': 'Password'
             }
 
@@ -153,8 +151,8 @@ class AuthService:
                 'name': shop_data['shopName'],
                 'address': shop_data['address'],
                 'zip_code': shop_data['zipCode'],
-                'service_area': float(shop_data['serviceArea']),
-                'price_per_item': float(shop_data['pricePerItem']),
+                # 'service_area': float(shop_data['serviceArea']),
+                # 'price_per_item': float(shop_data['pricePerItem']),
                 'status': 'active',
                 'rating': 0,
                 'total_orders': 0,

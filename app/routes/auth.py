@@ -58,7 +58,7 @@ def register_shop():
         data = request.get_json()
         required_fields = [
             'shopName', 'ownerName', 'email', 'phone', 'address',
-            'zipCode', 'serviceArea', 'pricePerItem', 'password'
+            'zipCode', 'password'
         ]
         
         # Check for missing fields

@@ -6,9 +6,8 @@ from app.utils.helpers import calculate_distance
 class ShopService:
     @staticmethod
     def create_shop(owner_id, shop_data):
-        # Validate required fields
-        required_fields = ['name', 'address', 'location', 'service_area', 
-                         'price_per_item', 'business_hours', 'contact_info']
+        required_fields = ['name', 'address', 'location', 
+                         'business_hours', 'contact_info']
         for field in required_fields:
             if field not in shop_data:
                 raise ValueError(f'{field} is required')
@@ -18,8 +17,6 @@ class ShopService:
             'name': shop_data['name'],
             'address': shop_data['address'],
             'location': shop_data['location'],
-            'service_area': float(shop_data['service_area']),
-            'price_per_item': float(shop_data['price_per_item']),
             'business_hours': shop_data['business_hours'],
             'contact_info': shop_data['contact_info'],
             'status': 'active',
@@ -45,8 +42,8 @@ class ShopService:
 
         # Update allowed fields
         allowed_updates = [
-            'name', 'address', 'location', 'service_area', 
-            'price_per_item', 'business_hours', 'contact_info', 'status'
+            'name', 'address', 'location', 
+            'business_hours', 'contact_info', 'status'
         ]
 
         update_data = {
@@ -115,7 +112,8 @@ class ShopService:
             'total_orders': 0,
             'pending_orders': 0,
             'completed_orders': 0,
-            'total_revenue': 0
+            'total_revenue': 0,
+            'pickup_dates': [] # Changed from pickup times
         }
         
         for stat in stats:
