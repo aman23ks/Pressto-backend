@@ -3,7 +3,7 @@ from app.services.shop_service import ShopService
 from app.utils.decorators import login_required, shop_owner_required
 from bson import json_util, ObjectId
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from .. import db
 
 shop_bp = Blueprint('shop', __name__)
@@ -246,3 +246,92 @@ def handle_service(current_user, service_id):
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': 'Failed to handle service request'}), 500
+    
+
+@shop_bp.route('/dashboard-stats', methods=['GET'])
+@shop_owner_required
+def get_dashboard_stats(current_user):
+    try:
+        # Get shop for current owner
+        shop = db.shops.find_one({'owner_id': ObjectId(current_user['user_id'])})
+        if not shop:
+            return jsonify({'error': 'Shop not found'}), 404
+
+        # Parse timeframe from query params
+        timeframe = request.args.get('timeframe', 'week')
+        
+        # Calculate date range
+        end_date = datetime.utcnow()
+        if timeframe == 'week':
+            start_date = end_date - timedelta(days=7)
+        elif timeframe == 'month':
+            start_date = end_date - timedelta(days=30)
+        else:  # year
+            start_date = end_date - timedelta(days=365)
+
+        # Get orders for this shop
+        orders = list(db.orders.find({
+            'shop_id': shop['_id'],
+            'created_at': {'$gte': start_date, '$lte': end_date}
+        }).sort('created_at', -1))
+
+        # Initialize default stats
+        stats = {
+            'totalOrders': 0,
+            'totalRevenue': 0,
+            'completedOrders': 0,
+            'pendingOrders': 0,
+            'revenueByDay': [],
+            'ordersByStatus': [],
+            'topServices': []
+        }
+
+        if not orders:
+            return jsonify(stats), 200
+
+        # Calculate basic stats
+        stats['totalOrders'] = len(orders)
+        stats['totalRevenue'] = sum(order.get('total_amount', 0) for order in orders)
+        stats['completedOrders'] = sum(1 for order in orders if order.get('status') == 'completed')
+        stats['pendingOrders'] = sum(1 for order in orders if order.get('status') == 'pending')
+
+        # Calculate revenue by day
+        revenue_by_day = {}
+        for order in orders:
+            date = order['created_at'].strftime('%Y-%m-%d')
+            revenue_by_day[date] = revenue_by_day.get(date, 0) + order.get('total_amount', 0)
+
+        stats['revenueByDay'] = [
+            {'date': date, 'revenue': amount} 
+            for date, amount in sorted(revenue_by_day.items())
+        ]
+
+        # Calculate orders by status
+        status_count = {}
+        for order in orders:
+            status = order.get('status', 'unknown')
+            status_count[status] = status_count.get(status, 0) + 1
+
+        stats['ordersByStatus'] = [
+            {'status': status, 'count': count}
+            for status, count in status_count.items()
+        ]
+
+        # Calculate top services
+        service_count = {}
+        for order in orders:
+            for item in order.get('items', []):
+                service = item.get('type')
+                if service:
+                    service_count[service] = service_count.get(service, 0) + item.get('count', 0)
+
+        stats['topServices'] = [
+            {'name': service, 'count': count}
+            for service, count in sorted(service_count.items(), key=lambda x: x[1], reverse=True)
+        ][:5]  # Top 5 services
+
+        return jsonify(stats), 200
+
+    except Exception as e:
+        print(f"Error in dashboard stats: {str(e)}")  # Add logging
+        return jsonify({'error': 'Failed to fetch shop details'}), 500
