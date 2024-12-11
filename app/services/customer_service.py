@@ -94,34 +94,40 @@ class CustomerService:
         return orders
 
     @staticmethod
-    def get_order_by_status(current_user, statuses):
-        orders = list(db.orders.aggregate([
-            {
-                '$match': {
-                    'customer_id': ObjectId(current_user['user_id']),
-                    'status': {'$in': statuses}
+    def get_order_by_status(current_user, order_type=None):
+            pipeline = [
+                {
+                    '$match': {
+                        'customer_id': ObjectId(current_user['user_id'])
+                    }
+                },
+                {
+                    '$lookup': {
+                        'from': 'shops',
+                        'localField': 'shop_id',
+                        'foreignField': '_id',
+                        'as': 'shop'
+                    }
+                },
+                {
+                    '$unwind': '$shop'
+                },
+                {
+                    '$sort': {'created_at': -1}
+                },
+                {
+                    '$project': {
+                        'id': {'$toString': '$_id'},
+                        'shopName': '$shop.name',
+                        'items': 1,
+                        'status': 1,
+                        'pickup_date': 1,
+                        'total_amount': 1,
+                        'created_at': 1,
+                        'pickup_address': 1
+                    }
                 }
-            },
-            {'$lookup': {
-                'from': 'shops',
-                'localField': 'shop_id',
-                'foreignField': '_id',
-                'as': 'shop'
-            }},
-            {'$unwind': '$shop'},
-            {'$sort': {'created_at': -1}},
-            {'$project': {
-                'id': {'$toString': '$_id'},
-                'shopName': '$shop.name',
-                'items': 1,
-                'status': 1,
-                'pickup_date': 1,
-                # 'pickup_time': 1,
-                # 'delivery_time': 1,
-                'total_amount': 1,
-                'created_at': 1,
-                'pickup_address': 1
-            }}
-        ]))
-        
-        return orders
+            ]
+
+            orders = list(db.orders.aggregate(pipeline))
+            return orders

@@ -4,8 +4,13 @@ from app.utils.decorators import login_required
 from bson import json_util
 import json
 
-
 customer_bp = Blueprint('customer', __name__)
+
+# Status mapping for order types
+ORDER_TYPE_STATUSES = {
+    'active': ['pending', 'accepted', 'pickedUp', 'inProgress', 'completed'],
+    'history': ['delivered', 'cancelled']
+}
 
 @customer_bp.route('/profile', methods=['GET'])
 @login_required
@@ -89,15 +94,67 @@ def get_customer_orders(current_user):
         if current_user['user_type'] != 'customer':
             return jsonify({'error': 'Unauthorized'}), 403
 
-        # Get order type from query parameter
-        order_type = request.args.get('type', 'active')  # default to active
-        # Set statuses based on order type
-        statuses = ['pending', 'inProgress'] if order_type == 'active' else ['completed']
-        
-        orders = CustomerService.get_order_by_status(current_user, statuses)
+        # Get all orders without filtering by type
+        orders = CustomerService.get_order_by_status(current_user)
         orders_json = json_util.dumps(orders)
+        
         return jsonify(json.loads(orders_json)), 200
-
     except Exception as e:
         print(f"Error in get_customer_orders: {str(e)}")
         return jsonify({'error': 'Failed to fetch orders'}), 500
+
+@customer_bp.route('/orders/dashboard', methods=['GET'])
+@login_required
+def get_dashboard_orders(current_user):
+    try:
+        if current_user['user_type'] != 'customer':
+            return jsonify({'error': 'Unauthorized'}), 403
+            
+        # Get active orders for dashboard
+        orders = CustomerService.get_order_by_status(current_user, 'active')
+        
+        # Format response for dashboard
+        response = {
+            'activeOrders': orders,
+            'orderCounts': {
+                'pending': sum(1 for order in orders if order['status'] == 'pending'),
+                'processing': sum(1 for order in orders if order['status'] in ['accepted', 'pickedUp', 'inProgress']),
+                'ready': sum(1 for order in orders if order['status'] == 'completed'),
+            }
+        }
+        
+        return jsonify(response), 200
+    except Exception as e:
+        print(f"Error in get_dashboard_orders: {str(e)}")
+        return jsonify({'error': 'Failed to fetch dashboard orders'}), 500
+
+@customer_bp.route('/orders/<order_id>', methods=['GET'])
+@login_required
+def get_order_details(current_user, order_id):
+    try:
+        if current_user['user_type'] != 'customer':
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        order = CustomerService.get_order_details(current_user['user_id'], order_id)
+        order_json = json_util.dumps(order)
+        return jsonify(json.loads(order_json)), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': 'Failed to fetch order details'}), 500
+
+@customer_bp.route('/orders/history', methods=['GET'])
+@login_required
+def get_order_history(current_user):
+    try:
+        if current_user['user_type'] != 'customer':
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        # Get completed and cancelled orders
+        orders = CustomerService.get_order_by_status(current_user, 'history')
+        orders_json = json_util.dumps(orders)
+        
+        return jsonify(json.loads(orders_json)), 200
+    except Exception as e:
+        print(f"Error in get_order_history: {str(e)}")
+        return jsonify({'error': 'Failed to fetch order history'}), 500

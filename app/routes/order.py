@@ -19,8 +19,6 @@ def create_order(current_user):
             shop_id=data['shop_id'],
             items=data['items'],
             pickup_date=data['pickup_date'],
-            # pickup_time=data['pickup_time'],
-            # delivery_time=data['delivery_time'],
             pickup_address=data['pickup_address'],
             special_instructions=data.get('special_instructions'),
             total_amount=data.get('total_amount')
@@ -38,8 +36,11 @@ def get_customer_orders(current_user):
         if current_user['user_type'] != 'customer':
             return jsonify({'error': 'Unauthorized'}), 403
 
-        status = request.args.get('status')
-        orders = OrderService.get_customer_orders(current_user['user_id'], status)
+        order_type = request.args.get('type', 'active')
+        orders = OrderService.get_customer_orders(
+            current_user['user_id'], 
+            order_type=order_type
+        )
         orders_json = json_util.dumps(orders)
         return jsonify(json.loads(orders_json)), 200
     except Exception as e:
@@ -74,7 +75,10 @@ def update_order_status(current_user, order_id):
             user_id=current_user['user_id'],
             user_type=current_user['user_type']
         )
-        return jsonify({'message': 'Order status updated successfully'}), 200
+        return jsonify({
+            'message': 'Order status updated successfully',
+            'status': new_status
+        }), 200
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
