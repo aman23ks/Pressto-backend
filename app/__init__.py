@@ -38,10 +38,12 @@ def create_app(config_class=Config):
     from app.routes.customer import customer_bp
     from app.routes.shop import shop_bp
     from app.routes.order import orders_bp
+    from app.routes.support_routes import support_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(customer_bp, url_prefix='/api/customer')
     app.register_blueprint(shop_bp, url_prefix='/api/shop')
     app.register_blueprint(orders_bp, url_prefix='/api/orders')
+    app.register_blueprint(support_bp, url_prefix='/api/support')
     
     return app
